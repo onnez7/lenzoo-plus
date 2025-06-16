@@ -1,0 +1,121 @@
+// =================================================================
+// FICHEIRO: schema.prisma
+// Localização: /prisma/schema.prisma
+// =================================================================
+// Este ficheiro define toda a estrutura da sua base de dados.
+// O Prisma usa-o para criar as tabelas e para gerar um cliente
+// de base de dados totalmente tipado para a sua aplicação.
+
+// 1. Definição do Gerador de Cliente e da Fonte de Dados
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // Indicamos que estamos a usar PostgreSQL
+  url      = env("DATABASE_URL") // A URL da base de dados virá das variáveis de ambiente
+}
+
+// 2. Definição dos Modelos (As nossas tabelas)
+
+model Franchise {
+  id               Int                @id @default(autoincrement())
+  name             String
+  cnpj             String?            @unique
+  phone            String?
+  email            String             @unique
+  address          Json? // Usamos o tipo Json para dados flexíveis
+  subscriptionPlan SubscriptionPlan   @default(FREE)
+  isActive         Boolean            @default(true)
+  createdAt        DateTime           @default(now())
+
+  // Relações
+  users    User[]
+  products Product[]
+  clients  Client[]
+
+  @@map("franchises") // Mapeia este modelo para a tabela "franchises"
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole
+  status       Status   @default(ACTIVE)
+  createdAt    DateTime @default(now())
+
+  // Relação com a Franquia (opcional, pois a Matriz não tem franchiseId)
+  franchiseId Int?
+  franchise   Franchise? @relation(fields: [franchiseId], references: [id])
+
+  @@map("users")
+}
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  name        String
+  sku         String?  @unique
+  imageUrl    String?
+  category    ProductCategory?
+  costPrice   Decimal? @db.Decimal(10, 2)
+  salePrice   Decimal? @db.Decimal(10, 2)
+  description String?
+  createdAt   DateTime @default(now())
+
+  // Relação com a Franquia (opcional, pois a Matriz cria produtos globais)
+  franchiseId Int?
+  franchise   Franchise? @relation(fields: [franchiseId], references: [id])
+
+  @@map("products")
+}
+
+model Client {
+  id          Int      @id @default(autoincrement())
+  name        String
+  cpf         String?  @unique
+  phone       String?
+  email       String?
+  opticalData Json? // Usamos o tipo Json para os dados da receita
+  createdAt   DateTime @default(now())
+
+  // Relação com a Franquia (obrigatória)
+  franchiseId Int
+  franchise   Franchise @relation(fields: [franchiseId], references: [id])
+
+  @@map("clients")
+}
+
+
+// 3. Definição dos Enums (Tipos pré-definidos)
+
+enum UserRole {
+  MATRIZ_ADMIN
+  FRANCHISE_ADMIN
+  EMPLOYEE
+}
+
+enum SubscriptionPlan {
+  FREE
+  ESSENTIAL
+  PREMIUM
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+  PENDING
+  DRAFT
+  COMPLETED
+  SHIPPED
+  CANCELLED
+}
+
+enum ProductCategory {
+  KIDS
+  SUN
+  MALE
+  FEMALE
+  UNISEX
+}

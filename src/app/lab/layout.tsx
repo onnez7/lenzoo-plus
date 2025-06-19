@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import AppSidebar from "@/components/shared/app-sidebar";
+import { AppSidebar } from "@/components/shared/app-sidebar";
 import { FlaskConical } from "lucide-react";
 
 export default async function LabLayout({

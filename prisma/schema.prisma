@@ -1,99 +1,322 @@
-// =================================================================
-// FICHEIRO: schema.prisma
-// Localização: /prisma/schema.prisma
-// =================================================================
-// Este ficheiro define toda a estrutura da sua base de dados.
-// O Prisma usa-o para criar as tabelas e para gerar um cliente
-// de base de dados totalmente tipado para a sua aplicação.
-
-// 1. Definição do Gerador de Cliente e da Fonte de Dados
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql" // Indicamos que estamos a usar PostgreSQL
-  url      = env("DATABASE_URL") // A URL da base de dados virá das variáveis de ambiente
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-// 2. Definição dos Modelos (As nossas tabelas)
+// Modelos
 
 model Franchise {
-  id               Int                @id @default(autoincrement())
+  id               Int                        @id @default(autoincrement())
   name             String
-  cnpj             String?            @unique
+  cnpj             String?                    @unique
   phone            String?
-  email            String             @unique
-  address          Json? // Usamos o tipo Json para dados flexíveis
-  subscriptionPlan SubscriptionPlan   @default(FREE)
-  isActive         Boolean            @default(true)
-  createdAt        DateTime           @default(now())
+  email            String                     @unique
+  address          Json?
+  subscriptionPlan SubscriptionPlan           @default(FREE)
+  isActive         Boolean                    @default(true)
+  createdAt        DateTime                   @default(now())
+
+  whatsAppProvider   WhatsAppProvider?
+  whatsAppApiToken   String?
+  whatsAppInstanceId String?
+  whatsAppApiSecret  String?
+  whatsAppFromNumber String?
+  whatsAppClientToken String?
+  
+  emailApiKey      String?
+  emailFromAddress String?
 
   // Relações
-  users    User[]
-  products Product[]
-  clients  Client[]
+  users            User[]
+  products         Product[]
+  clients          Client[]
+  orders           Order[]
+  availableProducts FranchiseAvailableProduct[]
+  expenses         Expense[]
+  salesGoals       SalesGoal[]
+  lostSales        LostSale[]
+  appointments     Appointment[]
+  automations      Automation[]
 
-  @@map("franchises") // Mapeia este modelo para a tabela "franchises"
+  @@map("franchises")
+}
+
+model Lab {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  email     String?  @unique
+  phone     String?
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  // Relações
+  orders    Order[]
+  labUsers  LabUser[]
+
+  @@map("labs")
 }
 
 model User {
-  id           Int      @id @default(autoincrement())
+  id           Int              @id @default(autoincrement())
   name         String
-  email        String   @unique
+  email        String?          @unique
   passwordHash String
   role         UserRole
-  status       Status   @default(ACTIVE)
-  createdAt    DateTime @default(now())
+  status       Status           @default(ACTIVE)
+  createdAt    DateTime?        @default(now())
 
-  // Relação com a Franquia (opcional, pois a Matriz não tem franchiseId)
-  franchiseId Int?
-  franchise   Franchise? @relation(fields: [franchiseId], references: [id])
+  franchiseId  Int?
+  franchise    Franchise?       @relation(fields: [franchiseId], references: [id])
+  orders       Order[]
+  salesGoals   SalesGoal[]
+  lostSales    LostSale[]
+  appointments Appointment[]
+  notifications Notification[]
 
+  @@index([email])
   @@map("users")
 }
 
+model LabUser {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String?  @unique
+  passwordHash String
+  labId        Int
+  lab          Lab      @relation(fields: [labId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+  @@index([email])
+  @@map("lab_users")
+}
+
 model Product {
-  id          Int      @id @default(autoincrement())
+  id          Int              @id @default(autoincrement())
   name        String
-  sku         String?  @unique
+  sku         String?          @unique
   imageUrl    String?
   category    ProductCategory?
-  costPrice   Decimal? @db.Decimal(10, 2)
-  salePrice   Decimal? @db.Decimal(10, 2)
+  costPrice   Decimal?         @db.Decimal(10, 2)
+  salePrice   Decimal?         @db.Decimal(10, 2)
   description String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime?        @default(now())
 
-  // Relação com a Franquia (opcional, pois a Matriz cria produtos globais)
   franchiseId Int?
-  franchise   Franchise? @relation(fields: [franchiseId], references: [id])
+  franchise   Franchise?       @relation(fields: [franchiseId], references: [id])
+  orderItems  OrderItem[]
+  availableIn FranchiseAvailableProduct[]
 
   @@map("products")
 }
 
 model Client {
-  id          Int      @id @default(autoincrement())
+  id          Int            @id @default(autoincrement())
   name        String
-  cpf         String?  @unique
+  cpf         String?        @unique
   phone       String?
   email       String?
-  opticalData Json? // Usamos o tipo Json para os dados da receita
-  createdAt   DateTime @default(now())
+  opticalData Json?
+  createdAt   DateTime?      @default(now())
 
-  // Relação com a Franquia (obrigatória)
   franchiseId Int
-  franchise   Franchise @relation(fields: [franchiseId], references: [id])
+  franchise   Franchise      @relation(fields: [franchiseId], references: [id])
+  orders      Order[]
+  appointments Appointment[]
+  messageLogs MessageLog[]
 
   @@map("clients")
 }
 
+model Order {
+  id          Int           @id @default(autoincrement())
+  totalAmount Decimal       @db.Decimal(10, 2)
+  status      Status        @default(DRAFT)
+  notes       String?
+  createdAt   DateTime      @default(now())
 
-// 3. Definição dos Enums (Tipos pré-definidos)
+  // Relações
+  franchiseId Int
+  franchise   Franchise     @relation(fields: [franchiseId], references: [id])
+  clientId    Int
+  client      Client        @relation(fields: [clientId], references: [id])
+  userId      Int?
+  user        User?         @relation(fields: [userId], references: [id])
+  items       OrderItem[]
+  payments    Payment[]
+  messageLogs MessageLog[]
+  labId       Int?
+  lab         Lab?          @relation(fields: [labId], references: [id], onUpdate: NoAction, onDelete: SetNull)
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id          Int      @id @default(autoincrement())
+  quantity    Int      @default(1)
+  unitPrice   Decimal  @db.Decimal(10, 2)
+  description String
+
+  // Relações
+  orderId     Int
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   Int?
+  product     Product? @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+model FranchiseAvailableProduct {
+  franchiseId Int
+  productId   Int
+
+  franchise   Franchise @relation(fields: [franchiseId], references: [id])
+  product     Product   @relation(fields: [productId], references: [id])
+
+  @@id([franchiseId, productId])
+  @@map("franchise_available_products")
+}
+
+model Payment {
+  id        Int           @id @default(autoincrement())
+  amount    Decimal       @db.Decimal(10, 2)
+  method    PaymentMethod
+  createdAt DateTime      @default(now())
+
+  // Relação com a Ordem de Serviço
+  orderId   Int
+  order     Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model Expense {
+  id          Int             @id @default(autoincrement())
+  description String
+  amount      Decimal         @db.Decimal(10, 2)
+  category    ExpenseCategory
+  dueDate     DateTime?       // Data de vencimento
+  paidAt      DateTime?       // Data de pagamento
+  createdAt   DateTime        @default(now())
+
+  // Relação com a Franquia
+  franchiseId Int
+  franchise   Franchise       @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+
+  @@map("expenses")
+}
+
+model SalesGoal {
+  id           Int      @id @default(autoincrement())
+  year         Int      // ex: 2025
+  month        Int      // 1 para Janeiro, 2 para Fevereiro, etc.
+  targetAmount Decimal  @db.Decimal(10, 2)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relações
+  franchiseId Int
+  franchise   Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, year, month]) // Garante uma única meta por utilizador/mês
+  @@map("sales_goals")
+}
+
+model LostSale {
+  id          Int            @id @default(autoincrement())
+  reason      LostSaleReason
+  notes       String?
+  createdAt   DateTime       @default(now())
+
+  // Relações
+  franchiseId Int
+  franchise   Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@map("lost_sales")
+}
+
+model Appointment {
+  id          Int      @id @default(autoincrement())
+  title       String   // ex: "Consulta de Refração"
+  startDateTime DateTime
+  endDateTime DateTime
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  // Relações
+  franchiseId   Int
+  franchise     Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+  clientId      Int
+  client        Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId        Int       // O profissional que fará o atendimento
+  user          User      @relation(fields: [userId], references: [id])
+
+  @@map("appointments")
+}
+
+model Automation {
+  id          Int               @id @default(autoincrement())
+  name        String            // ex: "Agradecimento Pós-Venda"
+  trigger     AutomationTrigger // O gatilho que dispara a automação
+  delayInDays Int?              // Atraso em dias (para DAYS_AFTER_PURCHASE)
+  message     String            @db.Text // O modelo da mensagem, ex: "Olá {{cliente}}, obrigado!"
+  isActive    Boolean           @default(true)
+
+  // Relação com a Franquia
+  franchiseId Int
+  franchise   Franchise         @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+  messageLogs MessageLog[]
+
+  @@map("automations")
+}
+
+model MessageLog {
+  id           Int        @id @default(autoincrement())
+  recipient    String     // Telefone ou email do cliente
+  message      String     @db.Text
+  sentAt       DateTime   @default(now())
+  status       String     // ex: "SENT", "FAILED"
+
+  // Relações
+  automationId Int
+  automation   Automation @relation(fields: [automationId], references: [id])
+  clientId     Int
+  client       Client     @relation(fields: [clientId], references: [id])
+  orderId      Int
+  order        Order      @relation(fields: [orderId], references: [id])
+
+  @@map("message_logs")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  message   String
+  link      String?  // Link para a página relevante (ex: /franchise/pedidos/123)
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Relações
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// Enums
 
 enum UserRole {
   MATRIZ_ADMIN
   FRANCHISE_ADMIN
-  EMPLOYEE
+  EMPLOYEE // Corrigido de EMPLOYEE
+  LAB_USER
 }
 
 enum SubscriptionPlan {
@@ -110,6 +333,10 @@ enum Status {
   COMPLETED
   SHIPPED
   CANCELLED
+  IN_PRODUCTION
+  LENS_ORDERED
+  IN_ASSEMBLY
+  QUALITY_CONTROL
 }
 
 enum ProductCategory {
@@ -118,4 +345,41 @@ enum ProductCategory {
   MALE
   FEMALE
   UNISEX
+}
+
+enum PaymentMethod {
+  DINHEIRO
+  CARTAO_CREDITO
+  CARTAO_DEBITO
+  PIX
+  BOLETO
+}
+
+enum ExpenseCategory {
+  ALUGUEL
+  SALARIOS
+  FORNECEDORES
+  MARKETING
+  IMPOSTOS
+  OUTROS
+}
+
+enum LostSaleReason {
+  PRECO_ALTO
+  MODELO_INDISPONIVEL
+  CONCORRENCIA
+  CLIENTE_INDECISO
+  ATENDIMENTO
+  OUTRO
+}
+
+enum AutomationTrigger {
+  ORDER_COMPLETED
+  ORDER_SHIPPED
+  DAYS_AFTER_PURCHASE
+}
+
+enum WhatsAppProvider {
+  TWILIO
+  ZAPI
 }

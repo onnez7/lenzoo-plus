@@ -1,15 +1,16 @@
 /*
  * =================================================================
- * FICHEIRO 2: AUTENTICAÇÃO ATUALIZADA (Usando Prisma)
+ * FICHEIRO 1: CONFIGURAÇÃO DE AUTENTICAÇÃO (CORRIGIDO)
  * Localização: src/lib/auth.ts
  * =================================================================
- * Esta é a versão do nosso ficheiro de autenticação que usa o Prisma
- * para procurar e validar os utilizadores.
+ * Corrigi os callbacks 'jwt' e 'session' para que eles incluam
+ * o 'franchiseId' em todo o fluxo de autenticação.
  */
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { prisma } from "@/lib/prisma"; // <-- IMPORTANTE: Importando o nosso novo Prisma Client
+import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { User } from "@prisma/client";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -19,71 +20,62 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
           return null;
         }
 
-        // AGORA USANDO PRISMA: Busca o utilizador na base de dados pelo e-mail.
         const user = await prisma.user.findUnique({
-          where: {
-            email: credentials.email,
-          },
+          where: { email: credentials.email },
         });
 
-        if (!user) {
-          return null; // Utilizador não encontrado
+        if (!user || !user.passwordHash) {
+          return null;
         }
-        
-        // A lógica de comparação de senha permanece a mesma.
+
         const isPasswordCorrect = await bcrypt.compare(
           credentials.password,
           user.passwordHash
         );
 
-        if (!isPasswordCorrect) {
-            return null; // Senha incorreta
+        if (isPasswordCorrect) {
+          return user;
         }
-
-        // Retorna o objeto do utilizador para criar a sessão.
-        return {
-          id: user.id.toString(),
-          email: user.email,
-          name: user.name,
-          role: user.role, // O papel vem diretamente do nosso modelo Prisma
-          franchiseId: user.franchiseId?.toString() // O ID da franquia também
-        };
+        
+        return null;
       },
     }),
   ],
-  
-  // Os callbacks permanecem os mesmos, pois a sua função é passar
-  // os dados para o token e para a sessão, independentemente da base de dados.
   callbacks: {
     jwt: async ({ token, user }) => {
-        if (user) {
-            token.id = user.id;
-            token.role = user.role;
-            token.franchiseId = user.franchiseId;
-        }
-        return token;
+      if (user) {
+        const u = user as User;
+        // --- CORREÇÃO AQUI ---
+        // Adicionamos o franchiseId ao token no momento do login.
+        token.id = u.id;
+        token.role = u.role;
+        token.franchiseId = u.franchiseId;
+        token.labId = u.labId;
+      }
+      return token;
     },
     session: async ({ session, token }) => {
-        if (token && session.user) {
-            session.user.id = token.id as string;
-            session.user.role = token.role as string;
-            session.user.franchiseId = token.franchiseId as string;
-        }
-        return session;
+      // --- CORREÇÃO AQUI ---
+      // Passamos os dados do token para a sessão, que fica disponível na aplicação.
+      if (session.user) {
+        session.user.id = token.id as string;
+        session.user.role = token.role as string;
+        session.user.franchiseId = token.franchiseId as number | null;
+        session.user.labId = token.labId as number | null;
+      }
+      return session;
     },
-  },
-
-  session: {
-    strategy: "jwt",
   },
   pages: {
     signIn: "/login",
+  },
+  session: {
+    strategy: "jwt",
   },
   secret: process.env.NEXTAUTH_SECRET,
 };

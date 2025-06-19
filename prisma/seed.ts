@@ -16,8 +16,8 @@ async function main() {
   console.log('A iniciar o processo de seed...');
 
   // --- DADOS DO UTILIZADOR ADMIN DA MATRIZ ---
-  const adminEmail = 'admin@lenzoo.com';
-  const adminPassword = 'admin'; // Senha simples para desenvolvimento
+  const adminEmail = 'franqueado@lenzoo.com';
+  const adminPassword = 'franqueado'; // Senha simples para desenvolvimento
 
   // 1. Encriptar a senha
   //    É crucial nunca guardar senhas em texto plano.
@@ -32,9 +32,9 @@ async function main() {
     update: {}, // Se já existir, não faz nada
     create: {
       email: adminEmail,
-      name: 'Admin Matriz',
+      name: 'Admin da Franquia Matriz',
       passwordHash: hashedPassword,
-      role: 'MATRIZ_ADMIN',
+      role: 'FRANCHISE_ADMIN', // Define o papel como ADMIN_MATRIX
       // Note que 'franchiseId' não é definido, como planeado.
     },
   });

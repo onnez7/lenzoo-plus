@@ -1,21 +1,29 @@
-"use client";
-import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { UserRole } from "@prisma/client";
 
-export default function HomePage() {
-  const [message, setMessage] = useState("");
+export default async function HomePage() {
+  const session = await getServerSession(authOptions);
 
-  const fetchBackend = async () => {
-    const res = await fetch("http://localhost:4000/api/hello");
-    const data = await res.json();
-    setMessage(data.message);
-  };
+  // Se não houver sessão, vai para a página de login.
+  if (!session?.user) {
+    redirect("/login");
+  }
 
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4">
-      <h1 className="text-4xl font-bold mb-4">Hello from Frontend</h1>
-      <Button onClick={fetchBackend}>Chamar Backend</Button>
-      {message && <p className="mt-4 text-lg">{message}</p>}
-    </div>
-  );
+  // Se for admin da matriz, vai para o dashboard da matriz.
+  if (session.user.role === UserRole.MATRIZ_ADMIN) {
+    redirect("/matriz/dashboard");
+  }
+
+  // --- NOVA LÓGICA AQUI ---
+  // Se for um utilizador de laboratório, vai para o dashboard do laboratório.
+  if (session.user.role === 'LAB_USER') {
+    redirect("/lab/dashboard");
+  }
+  
+  // Para todos os outros (Franqueado, Colaborador), vai para o dashboard do franqueado.
+  redirect("/franchise/dashboard");
+
+  return null; // Esta página nunca será realmente vista, apenas redireciona.
 }

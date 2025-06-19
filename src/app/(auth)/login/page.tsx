@@ -1,16 +1,12 @@
-// Marcar o componente como um "Client Component" é essencial
-// para que possamos usar interatividade e hooks como useState e useRouter.
 'use client';
 
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-
-// Importando os componentes visuais que já tínhamos
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -24,18 +20,23 @@ export default function LoginPage() {
     setIsLoading(true);
     setError('');
 
+    console.log('Tentativa de login com:', { email, password });
+
     const result = await signIn('credentials', {
       redirect: false,
       email,
       password,
     });
 
+    console.log('Resultado do signIn:', result);
+
     setIsLoading(false);
 
-    if (result?.error) {
+if (result?.error) {
       setError('E-mail ou senha inválidos. Tente novamente.');
     } else if (result?.ok) {
-      router.replace('/dashboard'); // Use replace para não deixar a página de login no histórico
+      router.push('/');
+      router.refresh(); 
     }
   };
 
@@ -43,13 +44,12 @@ export default function LoginPage() {
     <div className="flex flex-col gap-6">
       <Card className="overflow-hidden p-0">
         <CardContent className="grid p-0 md:grid-cols-2">
-          <form className="p-6 md:p-8">
+          <form className="p-6 md:p-8" onSubmit={handleSubmit}>
             <div className="flex flex-col gap-6">
               <div className="flex flex-col items-center text-center">
-                <h1 className="text-2xl font-bold">Bem-vindo ao Lenzoo+
-                </h1>
+                <h1 className="text-2xl font-bold">Bem-vindo ao Lenzoo+</h1>
                 <p className="text-sm text-balance">
-                Acesse sua conta para gerenciar sua ótica
+                  Acesse sua conta para gerenciar sua ótica
                 </p>
               </div>
               <div className="grid gap-3">
@@ -83,14 +83,13 @@ export default function LoginPage() {
                   disabled={isLoading}
                 />
               </div>
-              {/* Exibe uma mensagem de erro, se houver */}
               {error && (
                 <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 rounded-md">
                   <p className="text-sm">{error}</p>
                 </div>
               )}
               <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Entrando...' : 'Entrar'}
+                {isLoading ? 'Entrando...' : 'Entrar'}
               </Button>
               <div className="after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t">
                 <span className="bg-card text-muted-foreground relative z-10 px-2">
@@ -119,5 +118,5 @@ export default function LoginPage() {
         e <a href="#">Política de Privacidade</a>.
       </div>
     </div>
-  )
+  );
 }
